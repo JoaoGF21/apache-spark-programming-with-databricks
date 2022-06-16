@@ -35,8 +35,7 @@
 
 # COMMAND ----------
 
-# TODO
-<FILL_IN>
+# MAGIC %fs ls dbfs:/databricks-datasets
 
 # COMMAND ----------
 
@@ -48,8 +47,7 @@
 
 # COMMAND ----------
 
-# TODO
-files = dbutils.FILL_IN
+files = dbutils.fs.ls("dbfs:/databricks-datasets")
 display(files)
 
 # COMMAND ----------
@@ -64,8 +62,43 @@ display(files)
 
 # COMMAND ----------
 
+users_path
+
+# COMMAND ----------
+
+# Declare python variable as spark context, because it is necessary to allow SQL to access this information
+spark.sql(f"SET c.users_path = {users_path}")
+spark.sql(f"SET c.sales_path = {sales_path}")
+spark.sql(f"SET c.products_path = {products_path}")
+spark.sql(f"SET c.events_path = {events_path}")
+
+# COMMAND ----------
+
 # MAGIC %sql
-# MAGIC -- TODO
+# MAGIC SELECT "${c.users_path}"
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC CREATE TABLE IF NOT EXISTS users
+# MAGIC USING DELTA
+# MAGIC OPTIONS (path = "${c.users_path}");
+# MAGIC 
+# MAGIC CREATE TABLE IF NOT EXISTS sales
+# MAGIC USING DELTA
+# MAGIC OPTIONS (path = "${c.sales_path}");
+# MAGIC 
+# MAGIC CREATE TABLE IF NOT EXISTS products
+# MAGIC USING DELTA
+# MAGIC OPTIONS (path = "${c.products_path}");
+# MAGIC 
+# MAGIC CREATE TABLE IF NOT EXISTS events
+# MAGIC USING DELTA
+# MAGIC OPTIONS (path = "${c.events_path}");
+
+# COMMAND ----------
+
+print(database_name)
 
 # COMMAND ----------
 
@@ -101,7 +134,7 @@ display(files)
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC -- TODO
+# MAGIC SELECT * FROM products;
 
 # COMMAND ----------
 
@@ -127,7 +160,8 @@ display(files)
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC -- TODO
+# MAGIC SELECT ROUND(AVG(purchase_revenue_in_usd), 2) AS average_purchase_revenue_in_usd
+# MAGIC FROM sales;
 
 # COMMAND ----------
 
@@ -156,7 +190,8 @@ display(files)
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC -- TODO
+# MAGIC SELECT DISTINCT event_name
+# MAGIC FROM events;
 
 # COMMAND ----------
 
