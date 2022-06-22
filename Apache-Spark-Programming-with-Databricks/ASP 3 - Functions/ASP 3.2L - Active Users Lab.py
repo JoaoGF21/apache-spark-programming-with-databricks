@@ -46,8 +46,12 @@ display(df)
 
 # COMMAND ----------
 
-# TODO
-datetime_df = (df.FILL_IN
+from pyspark.sql.functions import col, to_date
+from pyspark.sql.types import TimestampType
+
+datetime_df = (df
+               .withColumn("ts", (col("ts") / 1e6).cast(TimestampType()))
+               .withColumn("date", to_date(col("ts")))
 )
 display(datetime_df)
 
@@ -90,10 +94,15 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
-active_users_df = (datetime_df.FILL_IN
+from pyspark.sql.functions import approx_count_distinct
+
+active_users_df = (datetime_df
+                   .groupBy("date")
+                   .agg(approx_count_distinct("user_id").alias("active_users"))
+                   .sort("date")
 )
 display(active_users_df)
+# the plot was made using the display option available in databricks display function
 
 # COMMAND ----------
 
@@ -130,8 +139,15 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
-active_dow_df = (active_users_df.FILL_IN
+from pyspark.sql.functions import date_format, avg, dayofweek
+
+active_dow_df = (active_users_df
+                 .withColumn("day", date_format(col("date"), "E"))
+                 .withColumn("dow_number", dayofweek(col("date")))
+                 .groupBy("day", "dow_number")
+                 .agg(avg("active_users").alias("avg_users"))
+                 .sort("dow_number")
+                 .drop("dow_number")
 )
 display(active_dow_df)
 
