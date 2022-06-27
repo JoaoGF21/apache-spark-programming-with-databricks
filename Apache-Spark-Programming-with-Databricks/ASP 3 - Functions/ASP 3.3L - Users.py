@@ -30,14 +30,12 @@ display(df)
 
 # COMMAND ----------
 
-# TODO
-
 from pyspark.sql.functions import *
 
 details_df = (df
-              .withColumn("items", FILL_IN("items"))
-              .FILL_IN("email", "items.item_name")
-              .withColumn("details", FILL_IN(col("item_name"), " "))
+              .withColumn("items", explode("items"))
+              .select("email", "items.item_name")
+              .withColumn("details", split(col("item_name"), " "))
              )
 display(details_df)
 
@@ -57,12 +55,10 @@ display(details_df)
 
 # COMMAND ----------
 
-# TODO
-
 mattress_df = (details_df
-               .FILL_IN(array_contains(col("details"), "Mattress"))
-               .withColumn("size", element_at(col("details"), FILL_IN))
-               .withColumn("quality", FILL_IN(col("details"), 1))
+               .filter(array_contains(col("details"), "Mattress"))
+               .withColumn("size", element_at(col("details"), 2))
+               .withColumn("quality", element_at(col("details"), 1))
               )
 display(mattress_df)
 
@@ -83,12 +79,10 @@ display(mattress_df)
 
 # COMMAND ----------
 
-# TODO
-
 pillow_df = (details_df
-             .FILL_IN(array_contains(col("details"), "Pillow"))
-             .withColumn("size", FILL_IN(col("details"), 1))
-             .FILL_IN("quality", FILL_IN(col("details"), 2))
+             .filter(array_contains(col("details"), "Pillow"))
+             .withColumn("size", element_at(col("details"), 1))
+             .withColumn("quality", element_at(col("details"), 2))
             )
 display(pillow_df)
 
@@ -103,9 +97,7 @@ display(pillow_df)
 
 # COMMAND ----------
 
-# TODO
-
-union_df = mattress_df.FILL_IN(pillow_df).FILL_IN("details")
+union_df = mattress_df.unionByName(pillow_df).drop("details")
 display(union_df)
 
 # COMMAND ----------
@@ -121,12 +113,10 @@ display(union_df)
 
 # COMMAND ----------
 
-# TODO
-
 options_df = (union_df
-              .FILL_IN("email")
-              .agg(FILL_IN("size").alias("size options"),
-                   FILL_IN("quality").alias("quality options"))
+              .groupBy("email")
+              .agg(collect_set("size").alias("size options"),
+                   collect_set("quality").alias("quality options"))
              )
 display(options_df)
 
