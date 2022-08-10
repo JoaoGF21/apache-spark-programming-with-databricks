@@ -59,15 +59,65 @@ dbutils.fs.head(f"{datasets_dir}/people/people-with-dups.txt")
 
 # COMMAND ----------
 
-# TODO
-
 source_file = f"{datasets_dir}/people/people-with-dups.txt"
 delta_dest_dir = working_dir + "/people"
 
 # In case it already exists
 dbutils.fs.rm(delta_dest_dir, True)
 
-# Complete your work here...
+
+# COMMAND ----------
+
+# Read file
+sdf_raw = (spark
+           .read
+           .option("header", "true")
+           .option("sep", ":")
+           .option("inferSchema", "true")
+           .csv(source_file)
+          )
+
+
+# COMMAND ----------
+
+from pyspark.sql.functions import col, lower, regexp_replace
+
+
+# COMMAND ----------
+
+# Removing duplicates considering that the name fields should be unique
+sdf_withou_duplicates = (sdf_raw
+                         .select(
+                             col("*"),
+                             lower("firstName").alias("lowerCaseFirstName"),
+                             lower("middleName").alias("lowerCaseMiddleName"),
+                             lower("lastName").alias("lowerCaseLastName"),
+                             regexp_replace(col("ssn"), "-", ""
+                                            ).alias("onlyNumberSsn")
+                         )
+                         .drop_duplicates(["lowerCaseFirstName", "lowerCaseMiddleName",
+                                           "lowerCaseLastName", "gender", "birthDate",
+                                           "salary", "onlyNumberSsn"])
+                         .drop("lowerCaseFirstName", "lowerCaseMiddleName", "lowerCaseLastName",
+                               "onlyNumberSsn")
+                         )
+
+# Count the number of rows
+sdf_withou_duplicates.count()
+
+
+# COMMAND ----------
+
+# Write the result in a Delta format in a single file 
+(sdf_withou_duplicates
+ .repartition(1)
+ .write
+ .mode("overwrite")
+ .format("delta")
+ .save(delta_dest_dir))
+
+# Checking the files inside the folder
+display(dbutils.fs.ls(delta_dest_dir))
 
 
 # COMMAND ----------
