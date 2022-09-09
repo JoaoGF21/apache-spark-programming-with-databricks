@@ -35,9 +35,14 @@
 
 # COMMAND ----------
 
-# TODO
-df = (spark.FILL_IN
+df = (spark
+      .readStream
+      .option("maxFilesPerTrigger", 1)
+      .format("delta")
+      .load(sales_path)
 )
+
+df.isStreaming
 
 # COMMAND ----------
 
@@ -59,9 +64,16 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
-coupon_sales_df = (df.FILL_IN
+from pyspark.sql.functions import explode, col
+
+# COMMAND ----------
+
+coupon_sales_df = (df
+                   .withColumn('items', explode(col("items")))
+                   .filter(col("items.coupon").isNotNull())
 )
+
+coupon_sales_df.isStreaming
 
 # COMMAND ----------
 
@@ -69,8 +81,9 @@ coupon_sales_df = (df.FILL_IN
 
 # COMMAND ----------
 
+# The test was with a problem, thats why I rewrite the string in the assert.
 schema_str = str(coupon_sales_df.schema)
-assert "StructField(items,StructType(List(StructField(coupon" in schema_str, "items column was not exploded"
+assert "StructField('items', StructType([StructField('coupon" in schema_str, "items column was not exploded"
 print("All test pass")
 
 # COMMAND ----------
@@ -86,11 +99,17 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
 coupons_checkpoint_path = working_dir + "/coupon-sales/checkpoint"
 coupons_output_path = working_dir + "/coupon-sales/output"
 
-coupon_sales_query = (coupon_sales_df.FILL_IN
+coupon_sales_query = (coupon_sales_df
+                      .writeStream
+                      .outputMode("append")
+                      .format("delta")
+                      .queryName("coupon_sales")
+                      .trigger(processingTime = "1 second")
+                      .option("checkpointLocation", coupons_checkpoint_path)
+                      .start(coupons_output_path)
                      )
 
 # COMMAND ----------
@@ -114,13 +133,13 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
-query_id = coupon_sales_query.FILL_IN
+query_id = coupon_sales_query.id
+query_id
 
 # COMMAND ----------
 
-# TODO
-query_status = coupon_sales_query.FILL_IN
+query_status = coupon_sales_query.status
+query_status
 
 # COMMAND ----------
 
@@ -139,8 +158,7 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
-coupon_sales_query.FILL_IN
+coupon_sales_query.stop()
 
 # COMMAND ----------
 
@@ -157,7 +175,13 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
+sdf_records = (spark
+               .read
+               .format("delta")
+               .load(coupons_output_path)
+              )
+
+display(sdf_records)
 
 # COMMAND ----------
 
