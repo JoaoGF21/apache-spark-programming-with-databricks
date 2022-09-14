@@ -48,8 +48,14 @@ df = (spark
 
 # COMMAND ----------
 
-# TODO
-events_df = (df.FILL_IN
+from pyspark.sql.functions import col
+from pyspark.sql.types import TimestampType
+
+# COMMAND ----------
+
+events_df = (df
+             .withColumn("createdAt", (col("event_timestamp")/1e6).cast(TimestampType()))
+             .withWatermark("createdAt", "2 hours")
             )
 
 # COMMAND ----------
@@ -58,7 +64,7 @@ events_df = (df.FILL_IN
 
 # COMMAND ----------
 
-assert "StructField(createdAt,TimestampType,true" in str(events_df.schema)
+assert "StructField('createdAt', TimestampType(), True" in str(events_df.schema)
 print("All test pass")
 
 # COMMAND ----------
@@ -74,11 +80,30 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
-spark.FILL_IN
+# Get the number of cores
+print(spark.sparkContext.defaultParallelism)
 
-traffic_df = (events_df.FILL_IN
-)
+# COMMAND ----------
+
+# Get the number of shuffle partition
+spark.conf.get("spark.sql.shuffle.partitions")
+
+# COMMAND ----------
+
+from pyspark.sql.functions import window, approx_count_distinct, hour
+
+# COMMAND ----------
+
+# Set the number of shuffle partitions to be the same as the number of cores available on cluster
+spark.conf.set("spark.sql.shuffle.partitions", spark.sparkContext.defaultParallelism)
+
+# Making the transformations
+traffic_df = (events_df
+              .groupBy(col("traffic_source"), window("createdAt", "1 hour"))                       
+              .agg(approx_count_distinct(col("user_id")).alias("active_users"))
+              .select(col("traffic_source"), col("active_users"), hour(col("window.start")).alias("hour"))
+              .sort(col("hour").asc())
+             )
 
 # COMMAND ----------
 
@@ -86,7 +111,7 @@ traffic_df = (events_df.FILL_IN
 
 # COMMAND ----------
 
-assert str(traffic_df.schema) == "StructType(List(StructField(traffic_source,StringType,true),StructField(active_users,LongType,false),StructField(hour,IntegerType,true)))"
+assert str(traffic_df.schema) == "StructType([StructField('traffic_source', StringType(), True), StructField('active_users', LongType(), False), StructField('hour', IntegerType(), True)])"
 print("All test pass")
 
 # COMMAND ----------
@@ -102,7 +127,7 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
+display(traffic_df, streamName="hourly_traffic")
 
 # COMMAND ----------
 
@@ -120,10 +145,14 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
 until_stream_is_ready("hourly_traffic")
 
-for s in FILL_IN:
+for s in spark.streams.active:
+    if s.name == "hourly_traffic":
+        s.stop()
+        s.awaitTermination()
+        print('hourly_traffic stopped!')
+
 
 # COMMAND ----------
 
