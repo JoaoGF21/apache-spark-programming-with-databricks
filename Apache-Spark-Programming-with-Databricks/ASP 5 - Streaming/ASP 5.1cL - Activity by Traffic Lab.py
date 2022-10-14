@@ -44,7 +44,12 @@
 # COMMAND ----------
 
 # TODO
-df = FILL_IN
+df = (spark
+      .readStream
+      .option('maxFilesPerTrigger', 1)
+      .format('delta')
+      .load(events_path)
+)
 
 df.isStreaming
 
@@ -68,10 +73,31 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
-spark.FILL_IN
+# Get the number of cores
+available_cores = spark.sparkContext.defaultParallelism
+print(available_cores)
 
-traffic_df = df.FILL_IN
+# COMMAND ----------
+
+# Get the number of shuffle partition
+spark.conf.get("spark.sql.shuffle.partitions")
+
+# COMMAND ----------
+
+# Set default shuffle partitions to number of cores on your cluster
+spark.conf.set("spark.sql.shuffle.partitions", available_cores)
+
+# COMMAND ----------
+
+from pyspark.sql.functions import col, count, approx_count_distinct
+
+# COMMAND ----------
+
+traffic_df = (df
+              .groupBy("traffic_source")
+              .agg(approx_count_distinct("user_id").alias('active_users'))
+              .sort("traffic_source")
+             )
 
 # COMMAND ----------
 
@@ -79,7 +105,7 @@ traffic_df = df.FILL_IN
 
 # COMMAND ----------
 
-assert str(traffic_df.schema) == "StructType(List(StructField(traffic_source,StringType,true),StructField(active_users,LongType,false)))"
+assert str(traffic_df.schema) == "StructType([StructField('traffic_source', StringType(), True), StructField('active_users', LongType(), False)])"
 print("All test pass")
 
 # COMMAND ----------
@@ -90,7 +116,7 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
+display(traffic_df, streamName="active_users")
 
 # COMMAND ----------
 
@@ -107,8 +133,13 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
-traffic_query = (traffic_df.FILL_IN
+traffic_query = (traffic_df
+                 .writeStream
+                 .queryName('active_users_by_traffic')
+                 .format('memory')
+                 .outputMode('complete')
+                 .trigger(processingTime="1 second")
+                 .start()
 )
 
 # COMMAND ----------
@@ -131,7 +162,7 @@ print("All test pass")
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC -- TODO
+# MAGIC SELECT * FROM active_users_by_traffic
 
 # COMMAND ----------
 
@@ -155,7 +186,14 @@ print("All test pass")
 
 # COMMAND ----------
 
-# TODO
+active_streams_list = spark.streams.active
+active_streams_list
+
+# COMMAND ----------
+
+for stream_query in active_streams_list:
+    print(stream_query.name)
+    stream_query.stop()
 
 # COMMAND ----------
 
